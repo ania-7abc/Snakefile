@@ -3,7 +3,6 @@ HEIGHT := 20
 DELAY := 0.2
 
 SNAKEFILE 	:= $(lastword $(MAKEFILE_LIST))
-RANDOM 		= $(shell awk 'BEGIN{srand(); print int(rand()*2^32)}')
 COMMA		:= ,
 
 SNAKE_DIR		:= .snake_state
@@ -39,8 +38,8 @@ init:
 
 gen_food:
 	while true; do \
-		food_x=$$(( $(RANDOM) % $(WIDTH) )); \
-		food_y=$$(( $(RANDOM) % $(HEIGHT) )); \
+		food_x=$$(awk 'BEGIN{srand(); print int(rand()*$(WIDTH))}'); \
+		food_y=$$(awk 'BEGIN{srand(); print int(rand()*$(HEIGHT))}'); \
 		is_snake=0; \
 		for point in $$(cat $(SNAKE_FILE)); do \
 			[ "$$food_x,$$food_y" = "$$point" ] && is_snake=1; \
