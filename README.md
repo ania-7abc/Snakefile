@@ -15,6 +15,7 @@ Snake in Makefile.
 ## Control:
 - `WASD / Arrows` -- move
 - `Q` -- exit
+- `Space` -- pause
 
 ## Settings
 
