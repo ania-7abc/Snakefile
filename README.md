@@ -1,0 +1,2 @@
+# Snakefile
+Snake in Makefile
