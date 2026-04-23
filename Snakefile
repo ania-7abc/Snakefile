@@ -15,7 +15,7 @@ STTY_SAVE_FILE	:= $(SNAKE_DIR)/.stty_save
 .PHONY: run init gen_food loop read_input move draw clean
 
 run: init clean
-	@# Выход
+	@# Exit
 
 init:
 	@mkdir $(SNAKE_DIR) 2>/dev/null || true
@@ -75,7 +75,7 @@ read_input:
 	esac
 
 move:
-	@# Получение информации
+	@# Information gathering
 	@$(eval DIR := $(shell cat $(STATE_FILE)))
 	@$(eval DX := $(word 1,$(DIR)))
 	@$(eval DY := $(word 2,$(DIR)))
@@ -88,13 +88,13 @@ move:
 	@$(eval NEW_X := $(shell echo $$(($(HEAD_X) + $(DX)))))
 	@$(eval NEW_Y := $(shell echo $$(($(HEAD_Y) + $(DY)))))
 	@#
-	@# Столкновение со стеной
+	@# Collision with a wall
 	@if [ $(NEW_X) -lt 0 ] || [ $(NEW_X) -ge $(WIDTH) ] || [ $(NEW_Y) -lt 0 ] || [ $(NEW_Y) -ge $(HEIGHT) ]; then \
 		echo "gameover" > $(STATE_FILE); \
 		exit 1; \
 	fi
 	@#
-	@# Столкновение с собой
+	@# Self-collision
 	@snake_str="$(SNAKE)"; \
 	set -- $$snake_str; \
 	head="$$1"; shift; \
@@ -105,7 +105,7 @@ move:
 		fi; \
 	done
 	@#
-	@# Новая змейка
+	@# New snake
 	@$(eval FOOD := $(shell cat $(FOOD_FILE)))
 	@if [ "$(NEW_X),$(NEW_Y)" = "$(FOOD)" ]; then \
 		NEW_SNAKE="$(NEW_X),$(NEW_Y) $(SNAKE)"; \
