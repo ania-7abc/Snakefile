@@ -1,40 +1,60 @@
-WIDTH := 20
-HEIGHT := 20
-DELAY := 0.2
+WIDTH	?= 20
+HEIGHT	?= 20
+DELAY	?= 0.2
 
 SNAKEFILE 	:= $(lastword $(MAKEFILE_LIST))
 COMMA		:= ,
 
-SNAKE_DIR		:= .snake_state
-SNAKE_FILE		:= $(SNAKE_DIR)/.snake
-FOOD_FILE		:= $(SNAKE_DIR)/.food
-STATE_FILE		:= $(SNAKE_DIR)/.state
-STTY_SAVE_FILE	:= $(SNAKE_DIR)/.stty_save
+SNAKE_DIR	?= .snake_state
+SNAKE_FILE	?= $(SNAKE_DIR)/.snake
+FOOD_FILE	?= $(SNAKE_DIR)/.food
+STATE_FILE	?= $(SNAKE_DIR)/.state
+STTY_FILE	?= $(SNAKE_DIR)/.stty
+AUTO_FILE 	?=
 
-.PHONY: run init gen_food loop read_input move draw clean
+RESET_COLOR := \033[0m
+ifdef NO_COLOR
+SNAKE_COLOR	:=
+MAP_COLOR	:=
+APPLE_COLOR	:=
+else
+SNAKE_COLOR	?= \033[1;32m
+MAP_COLOR	?= \033[1;34m
+APPLE_COLOR	?= \033[1;31m
+endif
 
-run: init clean
-	@# Exit
+.PHONY: run gen_food loop read_input move draw clean
 
-init:
+run:
 	@mkdir $(SNAKE_DIR) 2>/dev/null || true
-	@stty -g > $(STTY_SAVE_FILE) 2>/dev/null
+	@#
+	@stty -g > $(STTY_FILE)
+	@stty -echo
+	@printf '\033[?25l'
+	@#
 	@echo "2,0 1,0 0,0" > $(SNAKE_FILE)
 	@echo "1 0" > $(STATE_FILE)
 	@echo "4,0" > $(FOOD_FILE)
-	@$(MAKE) -f $(SNAKEFILE) draw
-	@$(MAKE) -s -f $(SNAKEFILE) loop; \
-	stty $(cat $(STTY_SAVE_FILE)) 2>/dev/null; \
-	SCORE=$$(cat $(SNAKE_FILE) | wc -w); \
+	@#
+	@tput clear
+	@$(MAKE) -s -f $(SNAKEFILE) draw
+	@#
+	@trap "stty "$$(cat $(STTY_FILE))"; printf '\033[?25h'" EXIT INT TERM; \
+	$(MAKE) -s -f $(SNAKEFILE) loop; \
 	case "$$(cat $(STATE_FILE))" in \
-		gameover) MSG="Game Over! Score: $$SCORE" ;; \
-		quit)     MSG="Goodbye! Score: $$SCORE" ;; \
+		gameover)	MSG="Game Over!" ;; \
+		quit)		MSG="Goodbye!" ;; \
+		error)		MSG="Auto file error!" ;; \
+		cheater)	MSG="Auto file is cheater!" ;; \
 		*) exit 1 ;; \
 	esac; \
+	MSG="$$MSG Score: $$(cat $(SNAKE_FILE) | wc -w)"; \
 	tput clear; \
 	printf "%$${#MSG}s\n" | tr ' ' '='; \
 	echo "$$MSG"; \
 	printf "%$${#MSG}s\n" | tr ' ' '=';
+	@#
+	@$(MAKE) -s -f $(SNAKEFILE) clean
 
 gen_food:
 	while true; do \
@@ -53,6 +73,17 @@ loop: read_input move draw
 	@$(MAKE) -f $(SNAKEFILE) loop
 
 read_input:
+	if [ -n "$(AUTO_FILE)" ]; then \
+		case "$$($(AUTO_FILE) $(WIDTH) $(HEIGHT) "$$(cat $(STATE_FILE))" "$$(cat $(SNAKE_FILE))" "$$(cat $(FOOD_FILE))")" in \
+			"0 -1"|"0 1"|"1 0"|"-1 0") \
+				echo "$$RESULT" > $(STATE_FILE);; \
+			"gameover"|"error") \
+				echo "$$RESULT" > $(STATE_FILE); exit 1;; \
+			"") ;; \
+			*) \
+				echo "cheater" > $(STATE_FILE); exit 1;; \
+		esac; \
+	fi; \
 	stty -icanon time 0 min 0 2>/dev/null || true; \
 	key=$$(dd bs=1 count=1 2>/dev/null); \
 	if [ "$$key" = "$$(printf '\033')" ]; then \
@@ -115,10 +146,11 @@ move:
 	echo $$NEW_SNAKE > $(SNAKE_FILE)
 
 draw:
-	@tput clear
+#	@tput clear
+	@printf "\033[H"
 	@$(eval SNAKE := $(shell cat $(SNAKE_FILE)))
 	@$(eval FOOD := $(shell cat $(FOOD_FILE)))
-	@printf "+%${WIDTH}s+\n" | tr ' ' '-'
+	@printf "$(MAP_COLOR)+%${WIDTH}s+\n" | tr ' ' '-'
 	@y=0; while [ $$y -lt $(HEIGHT) ]; do \
 		printf "|"; \
 		x=0; while [ $$x -lt $(WIDTH) ]; do \
@@ -127,19 +159,21 @@ draw:
 				[ "$$x,$$y" = "$$point" ] &&	is_snake=1; \
 			done; \
 			if [ $$is_snake -eq 1 ]; then \
-				printf "O"; \
+				printf "$(SNAKE_COLOR)O"; \
 			elif [ "$$x,$$y" = "$(FOOD)" ]; then \
-				printf "\$$"; \
+				printf "$(APPLE_COLOR)\$$"; \
 			else \
 				printf " "; \
 			fi; \
 			x=$$(( x + 1 )); \
 		done; \
-		echo "|"; \
+		echo "$(MAP_COLOR)|"; \
 		y=$$(( y + 1 )); \
 	done
 	@printf "+%${WIDTH}s+\n" | tr ' ' '-'
-	@echo "Score: $$(cat $(SNAKE_FILE) | wc -w)"
+	@printf "$(RESET_COLOR)";
+	@SCORE_MSG="Score: $$(cat $(SNAKE_FILE) | wc -w)"; \
+	printf "%$${#SCORE_MSG}s\033[$$(( ${HEIGHT} + 3))H$${SCORE_MSG}\n"
 
 clean:
 	@rm -rf $(SNAKE_DIR)
